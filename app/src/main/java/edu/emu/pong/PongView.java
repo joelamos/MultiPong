@@ -58,7 +58,7 @@ public class PongView extends View {
     }
 
     private void createEntities() {
-        float ballWidth = (displayWidth < displayHeight ? displayWidth : displayHeight) / 11;
+        float ballWidth = (displayWidth > displayHeight ? displayWidth : displayHeight) / 20.5f;
         Ball ball = new Ball(0, 0, ballWidth, ballWidth, 1, 1);
     }
 
