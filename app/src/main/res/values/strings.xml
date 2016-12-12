@@ -1,3 +1,22 @@
 <resources>
     <string name="app_name">Pong</string>
+    <!--For home screen-->
+    <string name="MultiPong">MultiPong</string>
+    <string name="CreateButton">Create Game</string>
+    <string name="JoinButton">Join Game</string>
+
+    <!--For player select screen -->
+    <string name="NumPlayersTV">Select Number of Players</string>
+    <string name="onePButton">One</string>
+    <string name="twoPButton">Two</string>
+    <string name="threePButton">Three</string>
+    <string name="fourPButton">Four</string>
+
+    <!-- For main/play screen -->
+    <string name = "BallsMissedText">Balls missed</string>
+
+    <integer name="BallsMissedInt">0</integer>
+
+
+
 </resources>

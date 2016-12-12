@@ -9,6 +9,7 @@ import android.util.DisplayMetrics;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.TextView;
 
 public class PongView extends View {
 
@@ -42,6 +43,8 @@ public class PongView extends View {
     private Paddle paddle;
     private Ball ball;
     private boolean started = false;
+    private int ballsMissed = 0;
+    private TextView BMcount;
 
     public PongView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -99,19 +102,38 @@ public class PongView extends View {
         paddle = new Paddle(paddleX, paddleY, paddleWidth, paddleHeight);
         float ballWidth = displayWidth / 20.5f;
         ball = new Ball(0, 0, ballWidth, ballWidth, 0, 0);
+
     }
 
     private void updateEntities(float delta) {
+        BMcount = (TextView) findViewById(R.id.BallsMissedInt);
         paddle.setX(adjustPosition(paddle, paddle.getX() + (delta * paddle.getRightwardVelocity()), true));
         for (Entity entity: Entity.getInstances()) {
             if (!entity.equals(paddle)) {
                 entity.setX(adjustPosition(entity, entity.getX() + (delta * entity.getRightwardVelocity()), true));
                 entity.setY(adjustPosition(entity, entity.getY() + (delta * entity.getDownwardVelocity()), false));
+
                 if (entity instanceof Ball) {
                     if (onWall(entity)) {
                         entity.setRightwardVelocityScale(-1 * entity.getRightwardVelocityScale());
-                    } else if (onCeiling(entity) || onPaddle(entity) || onFloor(entity)) {
+
+                    } else if (onPaddle(entity)) {
                         entity.setDownwardVelocityScale(-1 * entity.getDownwardVelocityScale());
+
+
+                    } else if (onCeiling(entity)){
+                        // add the code here for sending the ball to another screen
+                        //next line just causes the ball to bounce back down for now
+                        entity.setDownwardVelocityScale(-1 * entity.getDownwardVelocityScale());
+
+                    } else if (onFloor(entity)) {
+                        entity.setX(0);
+                        entity.setY(0);
+                        ballsMissed += 1;
+                        //intended to update the missed ball count. cannot figure out what is wrong
+                        //returns null object reference
+                        //BMcount.setText(ballsMissed);
+
                     }
                 }
             }

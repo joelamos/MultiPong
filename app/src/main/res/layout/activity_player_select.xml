@@ -11,7 +11,7 @@
     tools:context="edu.emu.pong.PlayerSelect">
 
     <TextView
-        android:text="Select Number of Players"
+        android:text="@string/NumPlayersTV"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
@@ -21,7 +21,7 @@
         android:textSize="30sp" />
 
     <Button
-        android:text="One"
+        android:text="@string/onePButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="52dp"
@@ -30,28 +30,30 @@
         android:layout_centerHorizontal="true" />
 
     <Button
-        android:text="Two"
+        android:text="@string/twoPButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/twoPButton"
-        android:layout_centerVertical="true"
-        android:layout_alignStart="@+id/onePButton" />
+        android:layout_marginTop="16dp"
+        android:layout_below="@+id/onePButton"
+        android:layout_centerHorizontal="true" />
 
     <Button
-        android:text="Four"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/fourPButton"
-        android:layout_below="@+id/threePButton"
-        android:layout_alignStart="@+id/threePButton"
-        android:layout_marginTop="16dp" />
-
-    <Button
-        android:text="Three"
+        android:text="@string/threePButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:id="@+id/threePButton"
         android:layout_below="@+id/twoPButton"
-        android:layout_alignStart="@+id/twoPButton" />
+        android:layout_centerHorizontal="true" />
+
+    <Button
+        android:text="@string/fourPButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/fourPButton"
+        android:layout_below="@+id/threePButton"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp" />
+
 </RelativeLayout>
