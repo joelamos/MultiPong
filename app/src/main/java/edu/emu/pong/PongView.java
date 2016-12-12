@@ -206,8 +206,8 @@ public class PongView extends View {
         }
         float xc = getDeviceEndpoint1(device).x;
         float relativeX = (float) ((absoluteX - xc) / (Math.cos(rad(device * (180 - a))))) / displayWidth;
-        float dxScale = (float)((Math.cos(rad(device * (180 - a)))*dy)-(Math.sin(rad(device * (180-a)))*dx)) / ball.standardVelocity;
-        float dyScale = (float)((Math.sin(rad(device * (180 - a)))*dy)+(Math.cos(rad(device * (180-a)))*dx)) / ball.standardVelocity * -1;
+        float dxScale = (float)((Math.sin(rad(device * (180 - a)))*dy)+(Math.cos(rad(device * (180-a)))*dx)) / ball.standardVelocity;
+        float dyScale = (float)((Math.cos(rad(device * (180 - a)))*dy)-(Math.sin(rad(device * (180-a)))*dx)) / ball.standardVelocity * -1;
         return new float[]{device, relativeX, dxScale, dyScale};
     }
 
