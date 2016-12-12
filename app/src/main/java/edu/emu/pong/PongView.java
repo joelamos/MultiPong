@@ -13,6 +13,9 @@ import android.view.WindowManager;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class PongView extends View {
 
@@ -44,9 +47,11 @@ public class PongView extends View {
     private int displayWidth;
     private int displayHeight;
     private Paddle paddle;
-    private Ball ball;
+    private List<Ball> balls = new ArrayList<Ball>();
+    private Ball startBall;
     private boolean started = false;
-    private int players = 5;
+    private int playerId = -1;
+    private int players;
 
     public PongView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -58,6 +63,46 @@ public class PongView extends View {
         physicsHandler.post(physicsUpdater);
     }
 
+    public void initialize(int playerId, int players) {
+        this.playerId = playerId;
+        this.players = players;
+    }
+
+    public void start(int secondsToStart) {
+        new Timer().schedule(
+                new TimerTask() {
+                    @Override
+                    public void run() {
+                        if (startBall != null) {
+                            startBall.setDownwardVelocityScale(rand(.8, 1.2));
+                            startBall.setRightwardVelocityScale(rand(.8, 1.2));
+                        }
+                    }
+                }, secondsToStart * 1000
+        );
+    }
+
+    public void setPlayerId(int playerId) {
+        this.playerId = playerId;
+    }
+
+    private void sendBall(Ball ball) {
+        float[] deviceInfo = getDeviceEntranceInfo(ball);
+        int device = (int) deviceInfo[0];
+        int ballNum = getBallNum(ball);
+        float relativeX = deviceInfo[1];
+        float dxScale = deviceInfo[2];
+        float dycale = deviceInfo[3];
+        // TODO actually send the ball
+    }
+
+    private void receiveBall(int ballNum, float relativeX, float dxScale, float dyScale) {
+        Ball ball = balls.get(ballNum);
+        ball.setX(relativeX * displayWidth);
+        ball.setDownwardVelocityScale(dyScale);
+        ball.setRightwardVelocityScale(dxScale);
+    }
+    
     @Override
     protected void onDraw(Canvas canvas) {
         for (Entity entity : Entity.getInstances()) {
@@ -71,11 +116,6 @@ public class PongView extends View {
         boolean leftSide = event.getX() < displayWidth / 2;
         switch (event.getAction()) {
             case MotionEvent.ACTION_MOVE:
-                if (!started) {
-                    started = true;
-                    ball.setDownwardVelocityScale(1);
-                    ball.setRightwardVelocityScale(1);
-                }
                 if (leftSide) {
                     paddle.setRightMovement(false);
                     paddle.setLeftMovement(true);
@@ -102,7 +142,15 @@ public class PongView extends View {
         float paddleY = displayHeight - paddleHeight;
         paddle = new Paddle(paddleX, paddleY, paddleWidth, paddleHeight);
         float ballWidth = displayWidth / 20.5f;
-        ball = new Ball(0, 0, ballWidth, ballWidth, 0, 0);
+        int numBalls = ((players - 1) / 3) + 1;
+        int startBallNum = playerId % 3 == 0 ? playerId / 3 : -1;
+        for (int i = 0; i < numBalls; i++) {
+            Ball ball = new Ball(displayWidth / 2, -1 * ballWidth, ballWidth, ballWidth, 0, 0);
+            balls.add(ball);
+            if (i == startBallNum) {
+                startBall = ball;
+            }
+        }
     }
 
     private void updateEntities(float delta) {
@@ -141,24 +189,33 @@ public class PongView extends View {
         return adjustedPosition;
     }
 
-    public boolean onWall(Entity entity) {
+    private boolean onWall(Entity entity) {
         return entity.getX() == 0 || entity.getX() == displayWidth - entity.getWidth();
     }
 
-    public boolean onCeiling(Entity entity) {
+    private boolean onCeiling(Entity entity) {
         return entity.getY() <= 0;
     }
 
-    public boolean onFloor(Entity entity) {
+    private boolean onFloor(Entity entity) {
         return entity.getY() == displayHeight + 100;
     }
 
-    public boolean inPaddleDomain(Entity entity) {
+    private boolean inPaddleDomain(Entity entity) {
         return paddle.getX() - entity.getWidth() < entity.getX() && entity.getX() < paddle.getX() + paddle.getWidth();
     }
 
-    public boolean onPaddle(Entity entity) {
+    private boolean onPaddle(Entity entity) {
         return inPaddleDomain(entity) && entity.getY() == displayHeight - entity.getHeight() - paddle.getHeight();
+    }
+
+    private int getBallNum(Ball ball) {
+        for (int i = 0; i < balls.size(); i++) {
+            if (balls.get(i).equals(ball)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -208,6 +265,7 @@ public class PongView extends View {
         float relativeX = (float) ((absoluteX - xc) / (Math.cos(rad(device * (180 - a))))) / displayWidth;
         float dxScale = (float)((Math.sin(rad(device * (180 - a)))*dy)+(Math.cos(rad(device * (180-a)))*dx)) / ball.standardVelocity;
         float dyScale = (float)((Math.cos(rad(device * (180 - a)))*dy)-(Math.sin(rad(device * (180-a)))*dx)) / ball.standardVelocity * -1;
+        device = (device + playerId + 1) % players;
         return new float[]{device, relativeX, dxScale, dyScale};
     }
 
@@ -238,5 +296,10 @@ public class PongView extends View {
 
     private double rad(double degrees) {
         return degrees * (Math.PI/180);
+    }
+
+    private float rand(double min, double max) {
+        Random r = new Random();
+        return (float) (min + (max - min) * r.nextDouble());
     }
 }
