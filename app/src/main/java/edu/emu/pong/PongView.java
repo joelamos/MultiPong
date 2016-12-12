@@ -3,12 +3,16 @@ package edu.emu.pong;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.PointF;
 import android.os.Handler;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class PongView extends View {
 
@@ -42,6 +46,7 @@ public class PongView extends View {
     private Paddle paddle;
     private Ball ball;
     private boolean started = false;
+    private int players = 5;
 
     public PongView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -91,7 +96,6 @@ public class PongView extends View {
     }
 
     private void createEntities() {
-        //float longestDimension = displayWidth > displayHeight ? displayWidth : displayHeight;
         float paddleWidth = displayWidth / 4;
         float paddleHeight = displayWidth / 60;
         float paddleX = (displayWidth / 2) - (paddleWidth / 2);
@@ -126,15 +130,12 @@ public class PongView extends View {
         float offset = (xCoordinate ? entity.getWidth() : entity.getHeight());
         if (targetPosition < minimumBound) {
             adjustedPosition = minimumBound;
-            System.out.println("Under min bound");
         } else if (targetPosition + offset > maximumBound) {
-            //System.out.println("Exceeded max bound");
             adjustedPosition = maximumBound - offset;
         }
         if (entity instanceof Ball && !xCoordinate && inPaddleDomain(entity) &&
                 entity.getY() > displayHeight - entity.getHeight() - paddle.getHeight() &&
                 entity.getY() < displayHeight - entity.getHeight()) {
-            System.out.println("Exceeded paddle bound");
             adjustedPosition = displayHeight - entity.getHeight() - paddle.getHeight();
         }
         return adjustedPosition;
@@ -158,5 +159,84 @@ public class PongView extends View {
 
     public boolean onPaddle(Entity entity) {
         return inPaddleDomain(entity) && entity.getY() == displayHeight - entity.getHeight() - paddle.getHeight();
+    }
+
+    /**
+     * Returns an array containing the number of the device the ball is to enter,
+     * the horizontal entrance position relative to the new device on a scale from 0 to 1,
+     * the rightward velocity scale, and the downward velocity scale.
+     */
+    private float[] getDeviceEntranceInfo(Ball ball) {
+        int device = -1;
+        float absoluteX = Float.NaN;
+        float dy = -1 * ball.getDownwardVelocity();
+        float dx = ball.getRightwardVelocity();
+        if (dx == 0) {
+            dx = .001f;
+        }
+        double a = angleBetweenDevices();
+        List<Integer> deviceCandidates = new ArrayList<Integer>(2);
+        List<Float> xValues = new ArrayList<Float>(2);
+        for (int c = 0; c < players && deviceCandidates.size() < 2; c++) {
+            float xc = getDeviceEndpoint1(c).x;
+            float yc = getDeviceEndpoint1(c).y;
+            float x = (float) (((((dy*ball.getX())/dx)-Math.tan(rad(c*(180 - a)))*xc)+yc)/((dy/dx)-Math.tan(rad(c*(180-a)))));
+            System.out.println("Device: " + c + ", x: " + x);
+            float xc2 = getDeviceEndpoint2(c).x;
+            if ((xc < x && x <= xc2) || (xc2 < x && x <= xc)) {
+                deviceCandidates.add(c);
+                xValues.add(x);
+            }
+        }
+        if (deviceCandidates.size() == 1) {
+            device = deviceCandidates.get(0);
+        } else {
+            for (int i = 0; i < deviceCandidates.size(); i++) {
+                float y = (dy / dx) * (xValues.get(i) - ball.getX());
+                int c = deviceCandidates.get(i);
+                float xc = getDeviceEndpoint1(c).x;
+                float yc = getDeviceEndpoint1(c).y;
+                float yc2 = deviceEdgeEquation(c, (float)Math.cos(rad(c*(180-a)))*displayWidth+xc);
+                if ((yc < y && y <= yc2) || yc2 < y && y <= yc) {
+                    device = c;
+                    absoluteX = xValues.get(i);
+                    break;
+                }
+            }
+        }
+        float xc = getDeviceEndpoint1(device).x;
+        float relativeX = (float) ((absoluteX - xc) / (Math.cos(rad(device * (180 - a))))) / displayWidth;
+        float dxScale = (float)((Math.cos(rad(device * (180 - a)))*dy)-(Math.sin(rad(device * (180-a)))*dx)) / ball.standardVelocity;
+        float dyScale = (float)((Math.sin(rad(device * (180 - a)))*dy)+(Math.cos(rad(device * (180-a)))*dx)) / ball.standardVelocity * -1;
+        return new float[]{device, relativeX, dxScale, dyScale};
+    }
+
+    private float deviceEdgeEquation(int device, float x) {
+        double angle = angleBetweenDevices();
+        PointF endpoint1 = getDeviceEndpoint1(device);
+        return (float) Math.tan(rad(device * (180 - angle))) * (x - endpoint1.x) + endpoint1.y;
+    }
+
+    private PointF getDeviceEndpoint1(int device) {
+        if (device == 0) {
+            return new PointF(0, 0);
+        }
+        return getDeviceEndpoint2(device - 1);
+    }
+
+    private PointF getDeviceEndpoint2(int device) {
+        double angle = angleBetweenDevices();
+        PointF endpoint1 = getDeviceEndpoint1(device);
+        float x = (float) ((Math.cos(rad(device * (180 - angle))) * displayWidth) + endpoint1.x);
+        float y = deviceEdgeEquation(device, x);
+        return new PointF(x, y);
+    }
+
+    private double angleBetweenDevices() {
+        return (((players - 2) * 180) / players);
+    }
+
+    private double rad(double degrees) {
+        return degrees * (Math.PI/180);
     }
 }
