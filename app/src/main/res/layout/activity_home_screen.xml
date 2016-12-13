@@ -11,7 +11,7 @@
     tools:context="edu.emu.pong.HomeScreen">
 
     <TextView
-        android:text="MultiPong"
+        android:text="@string/multiPongTV"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
@@ -21,7 +21,7 @@
         android:textSize="50sp" />
 
     <Button
-        android:text="Create Game"
+        android:text="@string/createButton"
         android:layout_height="50sp"
         android:id="@+id/createButton"
         android:layout_width="120sp"
@@ -30,7 +30,7 @@
         android:layout_marginStart="37dp" />
 
     <Button
-        android:text="Join Game"
+        android:text="@string/joinButton"
         android:layout_height="50sp"
         android:id="@+id/joinButton"
         android:layout_width="120sp"
