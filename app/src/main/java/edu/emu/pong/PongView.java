@@ -52,6 +52,9 @@ public class PongView extends View {
     private boolean started = false;
     private int playerId = -1;
     private int players;
+    private int lostBalls;
+    private PointF[] endpoint1s;
+    private PointF[] endpoint2s;
 
     public PongView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -59,13 +62,17 @@ public class PongView extends View {
         ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getMetrics(metrics);
         displayWidth = metrics.widthPixels;
         displayHeight = metrics.heightPixels;
-        createEntities();
         physicsHandler.post(physicsUpdater);
+        initialize(0, 5);
+        start(2);
     }
 
     public void initialize(int playerId, int players) {
         this.playerId = playerId;
         this.players = players;
+        endpoint1s = new PointF[players];
+        endpoint2s = new PointF[players];
+        createEntities();
     }
 
     public void start(int secondsToStart) {
@@ -89,20 +96,19 @@ public class PongView extends View {
     private void sendBall(Ball ball) {
         float[] deviceInfo = getDeviceEntranceInfo(ball);
         int device = (int) deviceInfo[0];
-        int ballNum = getBallNum(ball);
         float relativeX = deviceInfo[1];
         float dxScale = deviceInfo[2];
         float dycale = deviceInfo[3];
         // TODO actually send the ball
     }
 
-    private void receiveBall(int ballNum, float relativeX, float dxScale, float dyScale) {
-        Ball ball = balls.get(ballNum);
+    private void receiveBall(int ballId, float relativeX, float dxScale, float dyScale) {
+        Ball ball = balls.get(ballId);
         ball.setX(relativeX * displayWidth);
         ball.setDownwardVelocityScale(dyScale);
         ball.setRightwardVelocityScale(dxScale);
     }
-    
+
     @Override
     protected void onDraw(Canvas canvas) {
         for (Entity entity : Entity.getInstances()) {
@@ -145,7 +151,7 @@ public class PongView extends View {
         int numBalls = ((players - 1) / 3) + 1;
         int startBallNum = playerId % 3 == 0 ? playerId / 3 : -1;
         for (int i = 0; i < numBalls; i++) {
-            Ball ball = new Ball(displayWidth / 2, -1 * ballWidth, ballWidth, ballWidth, 0, 0);
+            Ball ball = new Ball(displayWidth / 2, -1 * ballWidth, ballWidth, ballWidth, 0, 0, i);
             balls.add(ball);
             if (i == startBallNum) {
                 startBall = ball;
@@ -154,34 +160,61 @@ public class PongView extends View {
     }
 
     private void updateEntities(float delta) {
-        paddle.setX(adjustPosition(paddle, paddle.getX() + (delta * paddle.getRightwardVelocity()), true));
+        paddle.setX(adjustXPosition(paddle, paddle.getX() + (delta * paddle.getRightwardVelocity())));
         for (Entity entity: Entity.getInstances()) {
             if (!entity.equals(paddle)) {
-                entity.setX(adjustPosition(entity, entity.getX() + (delta * entity.getRightwardVelocity()), true));
-                entity.setY(adjustPosition(entity, entity.getY() + (delta * entity.getDownwardVelocity()), false));
+                entity.setX(adjustXPosition(entity, entity.getX() + (delta * entity.getRightwardVelocity())));
+                entity.setY(adjustYPosition(entity, entity.getY() + (delta * entity.getDownwardVelocity())));
                 if (entity instanceof Ball) {
+                    boolean onFloor = onFloor(entity);
+                    boolean onCeiling = onCeiling(entity);
                     if (onWall(entity)) {
                         entity.setRightwardVelocityScale(-1 * entity.getRightwardVelocityScale());
-                    } else if (onCeiling(entity) || onPaddle(entity) || onFloor(entity)) {
-                        entity.setDownwardVelocityScale(-1 * entity.getDownwardVelocityScale());
+                    } else if (onCeiling || onPaddle(entity) || onFloor) {
+                        if (onFloor) {
+                            entity.setVisible(false);
+                            lostBalls++;
+                        } else {
+                            entity.setVisible(true);
+                        }
+                        if (onCeiling && players > 1 && entity instanceof Ball) {
+                            sendBall((Ball) entity);
+                            entity.setDownwardVelocityScale(0);
+                            startBall.setY(-1 * entity.getHeight());
+                        } else {
+                            entity.setDownwardVelocityScale(-1 * entity.getDownwardVelocityScale());
+                        }
                     }
                 }
             }
         }
     }
 
-    private float adjustPosition(Entity entity, float targetPosition, boolean xCoordinate) {
-        float position = xCoordinate ? entity.getX() : entity.getY();
+    private float adjustXPosition(Entity entity, float targetPosition) {
+        float position = entity.getX();
         float minimumBound = 0;
-        float maximumBound = xCoordinate ? displayWidth : displayHeight + entity.getHeight() + 100;
+        float maximumBound = displayWidth;
         float adjustedPosition = targetPosition;
-        float offset = (xCoordinate ? entity.getWidth() : entity.getHeight());
         if (targetPosition < minimumBound) {
             adjustedPosition = minimumBound;
-        } else if (targetPosition + offset > maximumBound) {
-            adjustedPosition = maximumBound - offset;
+        } else if (targetPosition + entity.getWidth() > maximumBound) {
+            adjustedPosition = maximumBound - entity.getWidth();
         }
-        if (entity instanceof Ball && !xCoordinate && inPaddleDomain(entity) &&
+        return adjustedPosition;
+    }
+
+    private float adjustYPosition(Entity entity, float targetPosition) {
+        boolean isBall = entity instanceof Ball;
+        float position = entity.getY();
+        float minimumBound = players > 1 && isBall ? entity.getHeight() * -2 : 0;
+        float maximumBound = isBall ? displayHeight + entity.getHeight() * 2 : displayHeight;
+        float adjustedPosition = targetPosition;
+        if (targetPosition < minimumBound) {
+            adjustedPosition = minimumBound;
+        } else if (targetPosition + entity.getHeight() > maximumBound) {
+            adjustedPosition = maximumBound - entity.getHeight();
+        }
+        if (isBall && inPaddleDomain(entity) &&
                 entity.getY() > displayHeight - entity.getHeight() - paddle.getHeight() &&
                 entity.getY() < displayHeight - entity.getHeight()) {
             adjustedPosition = displayHeight - entity.getHeight() - paddle.getHeight();
@@ -194,11 +227,15 @@ public class PongView extends View {
     }
 
     private boolean onCeiling(Entity entity) {
-        return entity.getY() <= 0;
+        if (players > 1 && entity instanceof Ball) {
+            return same(entity.getY(), entity.getHeight() * -2);
+        } else {
+            return same(entity.getY(), 0);
+        }
     }
 
     private boolean onFloor(Entity entity) {
-        return entity.getY() == displayHeight + 100;
+        return same(entity.getY(), displayHeight + entity.getHeight());
     }
 
     private boolean inPaddleDomain(Entity entity) {
@@ -209,15 +246,6 @@ public class PongView extends View {
         return inPaddleDomain(entity) && entity.getY() == displayHeight - entity.getHeight() - paddle.getHeight();
     }
 
-    private int getBallNum(Ball ball) {
-        for (int i = 0; i < balls.size(); i++) {
-            if (balls.get(i).equals(ball)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
     /**
      * Returns an array containing the number of the device the ball is to enter,
      * the horizontal entrance position relative to the new device on a scale from 0 to 1,
@@ -225,7 +253,6 @@ public class PongView extends View {
      */
     private float[] getDeviceEntranceInfo(Ball ball) {
         int device = -1;
-        float absoluteX = Float.NaN;
         float dy = -1 * ball.getDownwardVelocity();
         float dx = ball.getRightwardVelocity();
         if (dx == 0) {
@@ -234,11 +261,11 @@ public class PongView extends View {
         double a = angleBetweenDevices();
         List<Integer> deviceCandidates = new ArrayList<Integer>(2);
         List<Float> xValues = new ArrayList<Float>(2);
-        for (int c = 0; c < players && deviceCandidates.size() < 2; c++) {
+        for (int c = 1; c < players && deviceCandidates.size() < 2; c++) {
             float xc = getDeviceEndpoint1(c).x;
             float yc = getDeviceEndpoint1(c).y;
             float x = (float) (((((dy*ball.getX())/dx)-Math.tan(rad(c*(180 - a)))*xc)+yc)/((dy/dx)-Math.tan(rad(c*(180-a)))));
-            System.out.println("Device: " + c + ", x: " + x);
+            //System.out.println("Device: " + c + ", x: " + x);
             float xc2 = getDeviceEndpoint2(c).x;
             if ((xc < x && x <= xc2) || (xc2 < x && x <= xc)) {
                 deviceCandidates.add(c);
@@ -256,17 +283,19 @@ public class PongView extends View {
                 float yc2 = deviceEdgeEquation(c, (float)Math.cos(rad(c*(180-a)))*displayWidth+xc);
                 if ((yc < y && y <= yc2) || yc2 < y && y <= yc) {
                     device = c;
-                    absoluteX = xValues.get(i);
                     break;
                 }
             }
+        } if (device >= 0) {
+            float xc = getDeviceEndpoint1(device).x;
+            float yc = getDeviceEndpoint1(device).y;
+            float relativeX = (float) ((ballEquation(ball, xc) - yc) / (Math.sin(rad(device * (180 - a))))) / displayWidth;
+            float dxScale = (float) ((Math.sin(rad(device * (180 - a))) * dy) + (Math.cos(rad(device * (180 - a))) * dx)) / ball.standardVelocity;
+            float dyScale = (float) ((Math.cos(rad(device * (180 - a))) * dy) - (Math.sin(rad(device * (180 - a))) * dx)) / ball.standardVelocity * -1;
+            device = (device + playerId) % players;
+            return new float[]{device, relativeX, dxScale, dyScale};
         }
-        float xc = getDeviceEndpoint1(device).x;
-        float relativeX = (float) ((absoluteX - xc) / (Math.cos(rad(device * (180 - a))))) / displayWidth;
-        float dxScale = (float)((Math.sin(rad(device * (180 - a)))*dy)+(Math.cos(rad(device * (180-a)))*dx)) / ball.standardVelocity;
-        float dyScale = (float)((Math.cos(rad(device * (180 - a)))*dy)-(Math.sin(rad(device * (180-a)))*dx)) / ball.standardVelocity * -1;
-        device = (device + playerId + 1) % players;
-        return new float[]{device, relativeX, dxScale, dyScale};
+        return new float[]{-1, -1, -1, -1};
     }
 
     private float deviceEdgeEquation(int device, float x) {
@@ -275,19 +304,36 @@ public class PongView extends View {
         return (float) Math.tan(rad(device * (180 - angle))) * (x - endpoint1.x) + endpoint1.y;
     }
 
+    private float ballEquation(Ball ball, float x) {
+        return (-1 * ball.getDownwardVelocity() / ball.getRightwardVelocity()) * (x - ball.getX());
+    }
+
     private PointF getDeviceEndpoint1(int device) {
-        if (device == 0) {
-            return new PointF(0, 0);
+        if (device >= 0) {
+            if (endpoint1s[device] == null) {
+                if (device == 0) {
+                    endpoint1s[device] = new PointF(0, 0);
+                } else {
+                    endpoint1s[device] = getDeviceEndpoint2(device - 1);
+                }
+            }
+            return endpoint1s[device];
         }
-        return getDeviceEndpoint2(device - 1);
+        return null;
     }
 
     private PointF getDeviceEndpoint2(int device) {
-        double angle = angleBetweenDevices();
-        PointF endpoint1 = getDeviceEndpoint1(device);
-        float x = (float) ((Math.cos(rad(device * (180 - angle))) * displayWidth) + endpoint1.x);
-        float y = deviceEdgeEquation(device, x);
-        return new PointF(x, y);
+        if (device >= 0) {
+            if (endpoint2s[device] == null) {
+                double angle = angleBetweenDevices();
+                PointF endpoint1 = getDeviceEndpoint1(device);
+                float x = (float) ((Math.cos(rad(device * (180 - angle))) * displayWidth) + endpoint1.x);
+                float y = deviceEdgeEquation(device, x);;
+                endpoint2s[device] = new PointF(x, y);
+            }
+            return endpoint2s[device];
+        }
+        return null;
     }
 
     private double angleBetweenDevices() {
@@ -296,6 +342,10 @@ public class PongView extends View {
 
     private double rad(double degrees) {
         return degrees * (Math.PI/180);
+    }
+
+    private boolean same(float value1, float value2) {
+        return Math.abs(value1 - value2) < 1;
     }
 
     private float rand(double min, double max) {

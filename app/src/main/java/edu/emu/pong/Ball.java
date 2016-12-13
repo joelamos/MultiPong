@@ -7,11 +7,20 @@ import android.graphics.RectF;
 
 public class Ball extends Entity {
 
-    public Ball(float x, float y, float width, float height, float rightwardVelocityScale, float downwardVelocityScale) {
-        super(x, y, width, height, (float) (width / 3.33), rightwardVelocityScale, downwardVelocityScale);
+    private int id;
+
+    public Ball(float x, float y, float width, float height, float rightwardVelocityScale, float downwardVelocityScale, int id) {
+        super(x, y, width, height, width / 3.33f, rightwardVelocityScale, downwardVelocityScale);
+        this.id = id;
     }
 
     protected void draw(Canvas canvas, Paint paint) {
-        canvas.drawArc(new RectF(getX(), getY(), getX() + width, getY() + height), 0, 360, true, paint);
+        if (visible) {
+            canvas.drawArc(new RectF(getX(), getY(), getX() + width, getY() + height), 0, 360, true, paint);
+        }
+    }
+
+    public int getId() {
+        return id;
     }
 }

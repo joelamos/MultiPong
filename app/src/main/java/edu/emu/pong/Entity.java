@@ -19,6 +19,7 @@ public abstract class Entity {
     private Context context;
     protected float rightwardVelocityScale;
     protected float downwardVelocityScale;
+    protected boolean visible = true;
 
     public Entity(float x, float y, float width, float height, float standardVelocity, float rightwardVelocityScale, float downwardVelocityScale) {
         this.x = x;
@@ -81,6 +82,10 @@ public abstract class Entity {
     public void setDownwardVelocityScale(float scale) {
         downwardVelocityScale = scale;
         dy = standardVelocity * scale;
+    }
+
+    public void setVisible(boolean visible) {
+        this.visible = visible;
     }
 
     public static List<Entity> getInstances() {
