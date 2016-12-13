@@ -7,7 +7,7 @@ import android.widget.TextView;
 
 public class MainActivity extends Activity {
 
-    private PongView pongView;
+    protected PongView pongView;
     private TextView lostBallsView;
 
     @Override
