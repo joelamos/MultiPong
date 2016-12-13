@@ -63,8 +63,6 @@ public class PongView extends View {
         displayWidth = metrics.widthPixels;
         displayHeight = metrics.heightPixels;
         physicsHandler.post(physicsUpdater);
-        initialize(0, 5);
-        start(2);
     }
 
     public void initialize(int playerId, int players) {
@@ -174,6 +172,7 @@ public class PongView extends View {
                         if (onFloor) {
                             entity.setVisible(false);
                             lostBalls++;
+                            ((MainActivity) getContext()).setLostBalls(lostBalls);
                         } else {
                             entity.setVisible(true);
                         }
